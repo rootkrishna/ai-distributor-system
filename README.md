@@ -59,7 +59,7 @@ A comprehensive web-based management system for distributor operations with AI f
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/ai-distributor-system.git
+git clone https://github.com/rootkrishna/ai-distributor-system.git
 cd ai-distributor-system
 ```
 
