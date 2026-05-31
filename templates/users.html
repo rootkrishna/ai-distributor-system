@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}Users Management - AI Distributor Management System{% endblock %}
+{% block page_title %}Users Management{% endblock %}
+
+{% block content %}
+<div class="users-container">
+    {% if session.get('role') == 'Admin' %}
+    <button class="btn btn-success" onclick="openAddUserModal()">➕ Add New User</button>
+    {% endif %}
+    
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Role</th>
+                    <th>Zone</th>
+                    <th>Status</th>
+                    <th>Created At</th>
+                    {% if session.get('role') == 'Admin' %}
+                    <th>Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users.items %}
+                <tr>
+                    <td>{{ user.user_id }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>{{ user.phone }}</td>
+                    <td><span class="badge badge-role">{{ user.role }}</span></td>
+                    <td>{{ user.zone }}</td>
+                    <td>
+                        {% if user.status == 'Active' %}
+                        <span class="badge badge-success">✓ Active</span>
+                        {% else %}
+                        <span class="badge badge-danger">✗ Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                    {% if session.get('role') == 'Admin' %}
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="editUser({{ user.id }})">✏️ Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser({{ user.id }})">🗑️ Delete</button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    <div class="pagination">
+        {% if users.has_prev %}
+        <a href="{{ url_for('users', page=users.prev_num) }}" class="btn btn-sm">Previous</a>
+        {% endif %}
+        
+        <span>Page {{ users.page }} of {{ users.pages }}</span>
+        
+        {% if users.has_next %}
+        <a href="{{ url_for('users', page=users.next_num) }}" class="btn btn-sm">Next</a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add/Edit User Modal -->
+<div id="userModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('userModal')">&times;</span>
+        <h2 id="modalTitle">Add New User</h2>
+        <form id="userForm" class="user-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="userId">User ID</label>
+                    <input type="text" id="userId" name="user_id" required>
+                </div>
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="tel" id="phone" name="phone" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password">
+                    <small>Leave blank to keep existing password</small>
+                </div>
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <select id="role" name="role" required>
+                        <option value="">Select Role</option>
+                        <option value="Admin">Admin</option>
+                        <option value="Distributor Manager">Distributor Manager</option>
+                        <option value="DSR">DSR</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="zone">Zone</label>
+                    <select id="zone" name="zone" required>
+                        <option value="">Select Zone</option>
+                        <option value="North Zone">North Zone</option>
+                        <option value="South Zone">South Zone</option>
+                        <option value="East Zone">East Zone</option>
+                        <option value="West Zone">West Zone</option>
+                        <option value="Headquarters">Headquarters</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status" required>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">Save User</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let editingUserId = null;
+    
+    function openAddUserModal() {
+        editingUserId = null;
+        document.getElementById('modalTitle').textContent = 'Add New User';
+        document.getElementById('userForm').reset();
+        document.getElementById('password').style.display = 'block';
+        openModal('userModal');
+    }
+    
+    function editUser(userId) {
+        editingUserId = userId;
+        // Fetch user data
+        fetch(`/api/users/${userId}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('modalTitle').textContent = 'Edit User';
+                document.getElementById('userId').value = data.user_id;
+                document.getElementById('name').value = data.name;
+                document.getElementById('email').value = data.email;
+                document.getElementById('phone').value = data.phone;
+                document.getElementById('role').value = data.role;
+                document.getElementById('zone').value = data.zone;
+                document.getElementById('status').value = data.status;
+                document.getElementById('userId').disabled = true;
+                openModal('userModal');
+            });
+    }
+    
+    function deleteUser(userId) {
+        if (!confirm('Are you sure you want to delete this user?')) return;
+        
+        fetch(`/api/users/${userId}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            });
+    }
+    
+    document.getElementById('userForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            user_id: document.getElementById('userId').value,
+            name: document.getElementById('name').value,
+            email: document.getElementById('email').value,
+            password: document.getElementById('password').value,
+            phone: document.getElementById('phone').value,
+            role: document.getElementById('role').value,
+            zone: document.getElementById('zone').value,
+            status: document.getElementById('status').value
+        };
+        
+        if (editingUserId) {
+            // Edit user
+            fetch(`/api/users/${editingUserId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            });
+        } else {
+            // Add new user
+            fetch('/api/users/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                location.reload();
+            });
+        }
+    });
+</script>
+{% endblock %}
