@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+
+{% block title %}Invoice System - AI Distributor Management System{% endblock %}
+{% block page_title %}Invoice Management{% endblock %}
+
+{% block content %}
+<div class="invoice-container">
+    <button class="btn btn-success" onclick="openCreateInvoiceModal()">➕ Create New Invoice</button>
+    
+    <!-- Invoices List -->
+    <div class="invoices-list">
+        <h3>Recent Invoices</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Invoice #</th>
+                    <th>Customer</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Created By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invoice in invoices %}
+                <tr>
+                    <td><strong>{{ invoice.invoice_number }}</strong></td>
+                    <td>{{ invoice.customer_name }}</td>
+                    <td>${{ "%.2f"|format(invoice.total_amount) }}</td>
+                    <td><span class="badge badge-info">{{ invoice.status }}</span></td>
+                    <td>{{ invoice.created_at.strftime('%Y-%m-%d') }}</td>
+                    <td>{{ invoice.created_by }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-info" onclick="viewInvoice({{ invoice.id }})">👁️ View</button>
+                        <a href="/invoice/{{ invoice.id }}/pdf" class="btn btn-sm btn-primary">📥 PDF</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not invoices %}
+        <p class="no-data">No invoices yet. Create one to get started!</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Create Invoice Modal -->
+<div id="invoiceModal" class="modal">
+    <div class="modal-content modal-lg">
+        <span class="close" onclick="closeModal('invoiceModal')">&times;</span>
+        <h2>Create New Invoice</h2>
+        <form id="invoiceForm" class="invoice-form">
+            <div class="form-group">
+                <label for="customerName">Customer Name</label>
+                <input type="text" id="customerName" name="customer_name" required>
+            </div>
+            
+            <h3>Products</h3>
+            <div id="productsContainer"></div>
+            <button type="button" class="btn btn-secondary" onclick="addProductRow()">➕ Add Product</button>
+            
+            <hr>
+            
+            <div class="form-group">
+                <label><strong>Total Amount: $<span id="totalAmount">0.00</span></strong></label>
+            </div>
+            
+            <button type="submit" class="btn btn-primary btn-block">Create Invoice</button>
+        </form>
+    </div>
+</div>
+
+<!-- View Invoice Modal -->
+<div id="viewInvoiceModal" class="modal">
+    <div class="modal-content modal-lg">
+        <span class="close" onclick="closeModal('viewInvoiceModal')">&times;</span>
+        <h2>Invoice Details</h2>
+        <div id="invoiceDetails"></div>
+        <div style="margin-top: 20px;">
+            <button class="btn btn-primary" id="downloadPdfBtn">📥 Download PDF</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let productCount = 0;
+    
+    function openCreateInvoiceModal() {
+        productCount = 0;
+        document.getElementById('invoiceForm').reset();
+        document.getElementById('productsContainer').innerHTML = '';
+        addProductRow();
+        openModal('invoiceModal');
+    }
+    
+    function addProductRow() {
+        productCount++;
+        const html = `
+            <div class="product-row" id="product-${productCount}">
+                <input type="text" placeholder="Product Name" class="product-name" required>
+                <input type="number" placeholder="Quantity" class="product-qty" min="1" value="1" required onchange="calculateTotal()">
+                <input type="number" placeholder="Price" class="product-price" min="0" step="0.01" value="0" required onchange="calculateTotal()">
+                <span class="product-total">$0.00</span>
+                <button type="button" class="btn btn-danger btn-sm" onclick="removeProductRow(${productCount})">❌</button>
+            </div>
+        `;
+        document.getElementById('productsContainer').insertAdjacentHTML('beforeend', html);
+    }
+    
+    function removeProductRow(id) {
+        const row = document.getElementById(`product-${id}`);
+        if (row) row.remove();
+        calculateTotal();
+    }
+    
+    function calculateTotal() {
+        let total = 0;
+        const rows = document.querySelectorAll('.product-row');
+        rows.forEach(row => {
+            const qty = parseFloat(row.querySelector('.product-qty').value) || 0;
+            const price = parseFloat(row.querySelector('.product-price').value) || 0;
+            const rowTotal = qty * price;
+            row.querySelector('.product-total').textContent = `$${rowTotal.toFixed(2)}`;
+            total += rowTotal;
+        });
+        document.getElementById('totalAmount').textContent = total.toFixed(2);
+    }
+    
+    document.getElementById('invoiceForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const products = [];
+        document.querySelectorAll('.product-row').forEach(row => {
+            products.push({
+                name: row.querySelector('.product-name').value,
+                quantity: parseFloat(row.querySelector('.product-qty').value),
+                price: parseFloat(row.querySelector('.product-price').value)
+            });
+        });
+        
+        const data = {
+            customer_name: document.getElementById('customerName').value,
+            products: products
+        };
+        
+        fetch('/api/invoice/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            closeModal('invoiceModal');
+            location.reload();
+        });
+    });
+    
+    function viewInvoice(invoiceId) {
+        fetch(`/api/invoice/${invoiceId}`)
+            .then(response => response.json())
+            .then(data => {
+                let html = `
+                    <div class="invoice-details-view">
+                        <p><strong>Invoice Number:</strong> ${data.invoice_number}</p>
+                        <p><strong>Customer:</strong> ${data.customer_name}</p>
+                        <p><strong>Date:</strong> ${data.created_at}</p>
+                        <p><strong>Created By:</strong> ${data.created_by}</p>
+                        <h4>Products:</h4>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                data.products.forEach(product => {
+                    html += `
+                        <tr>
+                            <td>${product.name}</td>
+                            <td>${product.quantity}</td>
+                            <td>$${parseFloat(product.price).toFixed(2)}</td>
+                            <td>$${(product.quantity * product.price).toFixed(2)}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            </tbody>
+                        </table>
+                        <p style="margin-top: 15px; font-size: 18px;"><strong>Total Amount: $${data.total_amount.toFixed(2)}</strong></p>
+                    </div>
+                `;
+                
+                document.getElementById('invoiceDetails').innerHTML = html;
+                document.getElementById('downloadPdfBtn').onclick = function() {
+                    window.location.href = `/invoice/${invoiceId}/pdf`;
+                };
+                openModal('viewInvoiceModal');
+            });
+    }
+</script>
+{% endblock %}
