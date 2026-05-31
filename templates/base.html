@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AI Distributor Management System{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>AI DMS</h2>
+            <p>Distributor Mgmt</p>
+        </div>
+        
+        <ul class="nav-menu">
+            <li><a href="{{ url_for('dashboard') }}" class="nav-link">📊 Dashboard</a></li>
+            <li><a href="{{ url_for('users') }}" class="nav-link">👥 Users</a></li>
+            <li><a href="{{ url_for('invoice') }}" class="nav-link">📄 Invoice</a></li>
+            {% if session.get('role') == 'Admin' %}
+            <li><a href="#" class="nav-link" onclick="showExportMenu()">📤 Export</a></li>
+            <li><a href="#" class="nav-link" onclick="showAIMenu()">🤖 AI Tools</a></li>
+            {% endif %}
+        </ul>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <p><strong>{{ session.get('name') }}</strong></p>
+                <p class="role">{{ session.get('role') }}</p>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-btn">🚪 Logout</a>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="top-bar">
+            <h1>{% block page_title %}Welcome{% endblock %}</h1>
+            <div class="top-bar-info">
+                <span class="time" id="current-time"></span>
+            </div>
+        </div>
+        
+        <div class="content-area">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                        <button onclick="this.parentElement.style.display='none';">&times;</button>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+    
+    <!-- Export Modal -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('exportModal')">&times;</span>
+            <h2>Export Data</h2>
+            <div class="modal-body">
+                <p><strong>Select format to export:</strong></p>
+                <button class="btn btn-primary" onclick="location.href='/export/users/excel'">📊 Export Users (Excel)</button>
+                <button class="btn btn-primary" onclick="location.href='/export/users/xml'">📋 Export Users (XML)</button>
+                <button class="btn btn-primary" onclick="location.href='/export/invoices/excel'">💰 Export Invoices (Excel)</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI Tools Modal -->
+    <div id="aiModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('aiModal')">&times;</span>
+            <h2>AI Tools</h2>
+            <div class="modal-body">
+                <button class="btn btn-success" onclick="cleanDuplicates()">🧹 Clean Data (Remove Duplicates)</button>
+                <button class="btn btn-info" onclick="generateSummary()">📈 Generate Summary Report</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Summary Modal -->
+    <div id="summaryModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('summaryModal')">&times;</span>
+            <h2>System Summary Report</h2>
+            <div class="modal-body">
+                <textarea id="summaryText" readonly style="width: 100%; height: 400px; padding: 10px; font-family: monospace;"></textarea>
+                <br><br>
+                <button class="btn btn-primary" onclick="downloadSummary()">📥 Download Report</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
