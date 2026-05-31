@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - AI Distributor Management System{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-grid">
+    <!-- Statistics Cards -->
+    <div class="stats-container">
+        <div class="stat-card stat-card-primary">
+            <div class="stat-icon">👥</div>
+            <div class="stat-content">
+                <p class="stat-label">Total Users</p>
+                <p class="stat-value">{{ total_users }}</p>
+            </div>
+        </div>
+        
+        <div class="stat-card stat-card-success">
+            <div class="stat-icon">✅</div>
+            <div class="stat-content">
+                <p class="stat-label">Active Users</p>
+                <p class="stat-value">{{ active_users }}</p>
+            </div>
+        </div>
+        
+        <div class="stat-card stat-card-danger">
+            <div class="stat-icon">❌</div>
+            <div class="stat-content">
+                <p class="stat-label">Inactive Users</p>
+                <p class="stat-value">{{ inactive_users }}</p>
+            </div>
+        </div>
+        
+        <div class="stat-card stat-card-info">
+            <div class="stat-icon">📄</div>
+            <div class="stat-content">
+                <p class="stat-label">Total Invoices</p>
+                <p class="stat-value">{{ total_invoices }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts -->
+    <div class="charts-container">
+        <div class="chart-box">
+            <h3>Zone-wise Distribution</h3>
+            <canvas id="zoneChart"></canvas>
+        </div>
+        
+        <div class="chart-box">
+            <h3>Role Distribution</h3>
+            <canvas id="roleChart"></canvas>
+        </div>
+    </div>
+    
+    <!-- Zone Summary Table -->
+    <div class="table-container">
+        <h3>Zone Summary</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Zone</th>
+                    <th>User Count</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for zone, count in zone_summary.items() %}
+                <tr>
+                    <td>{{ zone }}</td>
+                    <td><span class="badge">{{ count }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Zone Chart
+    const zoneCtx = document.getElementById('zoneChart').getContext('2d');
+    const zoneData = {
+        labels: {{ zone_summary.keys()|list|tojson }},
+        datasets: [{
+            label: 'Users per Zone',
+            data: {{ zone_summary.values()|list|tojson }},
+            backgroundColor: [
+                '#FF6384',
+                '#36A2EB',
+                '#FFCE56',
+                '#4BC0C0',
+                '#9966FF'
+            ]
+        }]
+    };
+    new Chart(zoneCtx, {
+        type: 'doughnut',
+        data: zoneData,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+    
+    // Role Chart
+    const roleCtx = document.getElementById('roleChart').getContext('2d');
+    const roleData = {
+        labels: {{ role_summary.keys()|list|tojson }},
+        datasets: [{
+            label: 'Users per Role',
+            data: {{ role_summary.values()|list|tojson }},
+            backgroundColor: [
+                '#4CAF50',
+                '#2196F3',
+                '#FF9800'
+            ]
+        }]
+    };
+    new Chart(roleCtx, {
+        type: 'pie',
+        data: roleData,
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
