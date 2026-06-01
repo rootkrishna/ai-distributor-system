@@ -360,6 +360,36 @@ def get_invoice(invoice_id):
     })
 
 
+@app.route('/api/invoice/<int:invoice_id>/status', methods=['PUT'])
+@login_required
+def update_invoice_status(invoice_id):
+    """Update invoice status"""
+    try:
+        invoice = Invoice.query.get(invoice_id)
+        
+        if not invoice:
+            return jsonify({'status': 'error', 'message': 'Invoice not found'}), 404
+        
+        data = request.json
+        new_status = data.get('status')
+        
+        if new_status not in ['Pending', 'Completed']:
+            return jsonify({'status': 'error', 'message': 'Invalid status'}), 400
+        
+        invoice.status = new_status
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Invoice status updated to {new_status}',
+            'invoice_status': new_status
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
 @app.route('/invoice/<int:invoice_id>/pdf')
 @login_required
 def download_invoice_pdf(invoice_id):
@@ -391,6 +421,7 @@ def download_invoice_pdf(invoice_id):
         details = [
             ['Invoice Number:', invoice.invoice_number],
             ['Customer Name:', invoice.customer_name],
+            ['Status:', invoice.status],
             ['Date:', invoice.created_at.strftime('%Y-%m-%d')],
             ['Created By:', invoice.created_by]
         ]
@@ -412,8 +443,8 @@ def download_invoice_pdf(invoice_id):
             products_data.append([
                 product['name'],
                 str(product['quantity']),
-                f"${product['price']:.2f}",
-                f"${product['quantity'] * product['price']:.2f}"
+                f"₹{product['price']:.2f}",
+                f"₹{product['quantity'] * product['price']:.2f}"
             ])
         
         products_table = Table(products_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch, 1.5*inch])
@@ -439,7 +470,7 @@ def download_invoice_pdf(invoice_id):
             textColor=colors.HexColor('#1f4788'),
             alignment=2
         )
-        story.append(Paragraph(f'<b>Total Amount: ${invoice.total_amount:.2f}</b>', total_style))
+        story.append(Paragraph(f'<b>Total Amount: ₹{invoice.total_amount:.2f}</b>', total_style))
         
         # Build PDF
         doc.build(story)
@@ -644,8 +675,8 @@ ROLE DISTRIBUTION:
         summary += f"""
 INVOICE STATISTICS:
 - Total Invoices: {total_invoices}
-- Total Revenue: ${total_revenue:.2f}
-- Average Invoice Value: ${(total_revenue/total_invoices if total_invoices > 0 else 0):.2f}
+- Total Revenue: ₹{total_revenue:.2f}
+- Average Invoice Value: ₹{(total_revenue/total_invoices if total_invoices > 0 else 0):.2f}
 
 === END OF REPORT ===
 """
