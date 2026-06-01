@@ -28,12 +28,21 @@
                     <td><strong>{{ invoice.invoice_number }}</strong></td>
                     <td>{{ invoice.customer_name }}</td>
                     <td>₹{{ "%.2f"|format(invoice.total_amount) }}</td>
-                    <td><span class="badge badge-info">{{ invoice.status }}</span></td>
+                    <td>
+                        <span class="badge {% if invoice.status == 'Pending' %}badge-warning{% else %}badge-success{% endif %}">
+                            {{ invoice.status }}
+                        </span>
+                    </td>
                     <td>{{ invoice.created_at.strftime('%Y-%m-%d') }}</td>
                     <td>{{ invoice.created_by }}</td>
                     <td>
                         <button class="btn btn-sm btn-info" onclick="viewInvoice({{ invoice.id }})">👁️ View</button>
                         <a href="/invoice/{{ invoice.id }}/pdf" class="btn btn-sm btn-primary">📥 PDF</a>
+                        {% if invoice.status == 'Pending' %}
+                        <button class="btn btn-sm btn-warning" onclick="updateInvoiceStatus({{ invoice.id }}, 'Completed')">✓ Mark Complete</button>
+                        {% else %}
+                        <button class="btn btn-sm btn-secondary" onclick="updateInvoiceStatus({{ invoice.id }}, 'Pending')">↻ Mark Pending</button>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -79,6 +88,18 @@
         <div id="invoiceDetails"></div>
         <div style="margin-top: 20px;">
             <button class="btn btn-primary" id="downloadPdfBtn">📥 Download PDF</button>
+            <button class="btn btn-secondary" onclick="closeModal('viewInvoiceModal')">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div id="successModal" class="modal">
+    <div class="modal-content modal-sm">
+        <div style="text-align: center;">
+            <h2 style="color: #28a745;">✓ Success!</h2>
+            <p id="successMessage"></p>
+            <button class="btn btn-success" onclick="closeModal('successModal'); location.reload();">Confirm</button>
         </div>
     </div>
 </div>
@@ -88,6 +109,7 @@
 {% block scripts %}
 <script>
     let productCount = 0;
+    let currentInvoiceId = null;
     
     function openCreateInvoiceModal() {
         productCount = 0;
@@ -154,13 +176,21 @@
         })
         .then(response => response.json())
         .then(data => {
-            alert(data.message);
-            closeModal('invoiceModal');
-            location.reload();
+            if (data.status === 'success') {
+                closeModal('invoiceModal');
+                document.getElementById('successMessage').textContent = 'Invoice created successfully! ' + data.invoice_number;
+                openModal('successModal');
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error creating invoice: ' + error);
         });
     });
     
     function viewInvoice(invoiceId) {
+        currentInvoiceId = invoiceId;
         fetch(`/api/invoice/${invoiceId}`)
             .then(response => response.json())
             .then(data => {
@@ -168,6 +198,7 @@
                     <div class="invoice-details-view">
                         <p><strong>Invoice Number:</strong> ${data.invoice_number}</p>
                         <p><strong>Customer:</strong> ${data.customer_name}</p>
+                        <p><strong>Status:</strong> <span class="badge ${data.status === 'Pending' ? 'badge-warning' : 'badge-success'}">${data.status}</span></p>
                         <p><strong>Date:</strong> ${data.created_at}</p>
                         <p><strong>Created By:</strong> ${data.created_by}</p>
                         <h4>Products:</h4>
@@ -206,7 +237,32 @@
                     window.location.href = `/invoice/${invoiceId}/pdf`;
                 };
                 openModal('viewInvoiceModal');
+            })
+            .catch(error => {
+                alert('Error fetching invoice: ' + error);
             });
+    }
+
+    function updateInvoiceStatus(invoiceId, newStatus) {
+        if (!confirm(`Change invoice status to "${newStatus}"?`)) return;
+
+        fetch(`/api/invoice/${invoiceId}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('successMessage').textContent = 'Invoice status updated to ' + newStatus + '!';
+                openModal('successModal');
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error updating status: ' + error);
+        });
     }
 </script>
 {% endblock %}
